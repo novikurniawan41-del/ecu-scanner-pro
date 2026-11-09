@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ECU SCANNER PRO – Universal Diagnostic</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d10;--card:#161a20;--line:#252b34;--tx:#e6eaf0;--mut:#8a94a3;--ac:#2f7bff;--ok:#22c55e;--wr:#eab308;--er:#ef4444;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:17px;margin:0;letter-spacing:.5px}header h1 b{color:var(--ac)}
+#st{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:99px;background:#2a1215;color:var(--er)}
+#st.on{background:#0f2a18;color:var(--ok)}#st.sim{background:#2b2408;color:var(--wr)}
+nav{display:flex;overflow-x:auto;gap:4px;padding:8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+nav button{flex:none;background:none;border:0;color:var(--mut);padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer}
+nav button.a{background:var(--ac);color:#fff}
+main{padding:14px;max-width:960px;margin:auto}section{display:none}section.a{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.btn{background:var(--ac);color:#fff;border:0;border-radius:9px;padding:10px 14px;font-size:14px;cursor:pointer;margin:3px 3px 3px 0}
+.btn.g{background:#222a35}.btn.r{background:#b42318}.btn:disabled{opacity:.4}
+input,select,textarea{background:#0f1318;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;font:inherit}
+label{font-size:12px;color:var(--mut);display:block;margin-top:8px}
+.big{font-size:26px;font-weight:700}.u{font-size:12px;color:var(--mut)}.mm{font-size:11px;color:var(--mut)}
+.ok{color:var(--ok)}.wr{color:var(--wr)}.er{color:var(--er)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:#222a35}
+svg.sp{width:100%;height:34px}.note{font-size:12px;color:var(--mut)}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222a35;padding:10px 16px;border-radius:10px;display:none;z-index:9;max-width:90%}
+@media print{nav,header,.noprint{display:none}body{background:#fff;color:#000}.card{border-color:#999;background:#fff}}
+</style></head><body>
+<header><h1>ECU SCANNER <b>PRO</b></h1><span class="mm">Universal OBD-II Diagnostic</span><span id="st">TERPUTUS</span></header>
+<nav id="nav"></nav>
+<main>
+<section id="dash">
+ <div class="card"><b>Koneksi OBD-II</b>
+  <div class="note">Gunakan adapter ELM327 kompatibel. BLE: Chrome Android/desktop. USB/serial: Chrome desktop. Adapter Bluetooth Classic murah umumnya tidak didukung browser.</div>
+  <button class="btn" onclick="conn('ble')">Bluetooth LE</button>
+  <button class="btn" onclick="conn('serial')">USB / Serial</button>
+  <button class="btn g" onclick="conn('demo')">Demo Mode (SIMULASI)</button>
+  <button class="btn r" onclick="disc()">Putus</button>
+  <label>Baud rate serial</label><input id="baud" value="38400" inputmode="numeric">
+  <div id="cinfo" class="note" style="margin-top:8px">Belum terhubung.</div></div>
+ <div class="card"><b>Informasi Kendaraan</b><div class="grid">
+  <div><label>Merek</label><input id="v_brand" list="brands" placeholder="Toyota"></div>
+  <div><label>Model</label><input id="v_model" placeholder="Avanza"></div>
+  <div><label>Tahun</label><input id="v_year" inputmode="numeric"></div>
+  <div><label>Mesin / kapasitas</label><input id="v_eng" placeholder="1.3L 1NR-VE"></div>
+  <div><label>Bahan bakar</label><select id="v_fuel"><option>Bensin</option><option>Diesel</option><option>Hybrid</option><option>Listrik</option></select></div>
+  <div><label>Transmisi</label><select id="v_tr"><option>Manual</option><option>Automatic</option><option>CVT</option><option>DCT</option></select></div>
+  <div><label>VIN</label><input id="v_vin" placeholder="dibaca dari ECU"></div></div>
+  <datalist id="brands"><option>Toyota<option>Honda<option>Suzuki<option>Mitsubishi<option>Daihatsu<option>Nissan<option>Mazda<option>Isuzu<option>Hyundai<option>Kia<option>Mercedes-Benz<option>BMW<option>Audi<option>Volkswagen<option>Ford<option>Chevrolet<option>Wuling<option>BYD<option>Chery<option>Subaru<option>Lexus<option>Volvo<option>Jeep</datalist></div>
+ <div class="card"><button class="btn" onclick="scan(false)">QUICK SCAN</button><button class="btn" onclick="scan(true)">FULL SCAN</button>
+  <div class="note">Quick: VIN + DTC + readiness. Full: ditambah freeze frame dan sampel live data.</div><div id="sres"></div></div>
+</section>
+
+<section id="live"><div class="card"><button class="btn" id="lbtn" onclick="liveToggle()">Mulai</button><span class="note" id="lnote"></span>
+ <div id="psel" class="note"></div></div><div class="grid" id="lgrid"></div></section>
+
+<section id="dtc"><div class="card"><button class="btn" onclick="readDtc()">Baca DTC</button><button class="btn r" onclick="clearDtc()">Hapus DTC</button>
+ <div class="note">Menghapus DTC tidak memperbaiki penyebab kerusakan. Permanent DTC dan sebagian kode pabrikan tidak bisa dihapus lewat OBD-II standar.</div></div>
+ <div class="card" id="dlist">Belum ada data.</div>
+ <div class="card"><b>Cari kode / komponen</b><input id="dq" oninput="dsearch()" placeholder="P0300 atau MAF"><div id="dres"></div></div>
+ <div class="card"><b>Freeze Frame</b><br><button class="btn g" onclick="readFF()">Baca</button><button class="btn g" onclick="saveFF()">Simpan</button><button class="btn g" onclick="cmpFF()">Bandingkan dgn tersimpan</button><div id="ff"></div></div></section>
+
+<section id="mods"><div class="card"><button class="btn" onclick="readReady()">Baca I/M Readiness</button><div id="ready"></div></div>
+ <div class="card"><b>Modul ECU</b><div id="modlist" class="note">Jalankan scan terlebih dulu.</div></div>
+ <div class="card"><b>Komponen engine</b><div id="comp"></div></div></section>
+
+<section id="ai"><div class="card"><button class="btn" onclick="analyze()">Analisis data aktual</button>
+ <div class="note">Analisis berbasis aturan lokal atas hasil scan dan live data terakhir. Tidak ada data dikirim ke server.</div></div><div id="aires"></div></section>
+
+<section id="rep"><div class="card"><div class="noprint"><button class="btn" onclick="saveHist()">Simpan ke riwayat</button><button class="btn g" onclick="csv()">Export CSV</button><button class="btn g" onclick="window.print()">Cetak / PDF</button><button class="btn g" onclick="wa()">WhatsApp</button></div>
+ <div id="rbody">Belum ada hasil scan.</div><textarea id="csvbox" rows="5" style="display:none;margin-top:8px"></textarea></div></section>
+
+<section id="hist"><div class="card" id="hlist">Riwayat kosong.</div></section>
+
+<section id="set"><div class="card"><label><input type="checkbox" id="consent" style="width:auto" onchange="saveCfg()"> Izinkan menyimpan data kendaraan &amp; riwayat di perangkat ini</label>
+ <div class="note">Tanpa izin ini tidak ada yang disimpan. Aplikasi tidak mengirim data ke server mana pun.</div>
+ <button class="btn r" onclick="wipe()">Hapus semua data tersimpan</button></div>
+ <div class="card"><b>Panduan adapter</b><div class="note">1) Colok adapter ELM327 ke port OBD-II, kontak ON. 2) Pilih Bluetooth LE atau USB. 3) Pilih perangkat, tunggu deteksi protokol. 4) Jalankan Quick Scan. Fungsi coding, flashing, immobilizer dan reset sistem keselamatan sengaja tidak disediakan.</div></div></section>
+</main><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const TABS=[['dash','Dashboard'],['live','Live Data'],['dtc','Trouble Codes'],['mods','ECU Modules'],['ai','AI Mechanic'],['rep','Vehicle Report'],['hist','Scan History'],['set','Settings']];
+$('#nav').innerHTML=TABS.map(t=>`<button data-t="${t[0]}" onclick="tab('${t[0]}')">${t[1]}</button>`).join('');
+function tab(t){document.querySelectorAll('section').forEach(s=>s.classList.toggle('a',s.id===t));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('a',b.dataset.t===t));if(t==='hist')renderHist();if(t==='rep')renderRep()}
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3500)}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ===== Komunikasi ELM327 ===== */
+let link=null,mode=null,buf='',waiter=null,adapter='',proto='-',live=false,scanObj=null,lastLive={};
+function feed(t){buf+=t;if(buf.includes('>')&&waiter){const w=waiter;waiter=null;w(buf.split('>')[0])}}
+function q(cmd,ms=6000){return new Promise((res,rej)=>{if(!link)return rej(new Error('Tidak terhubung'));buf='';
+ const to=setTimeout(()=>{waiter=null;rej(new Error('Timeout: '+cmd))},ms);
+ waiter=r=>{clearTimeout(to);res(r.split(/[\r\n]+/).map(x=>x.trim()).filter(x=>x&&x!==cmd))};link.write(cmd+'\r')})}
+const U=s=>s.replace(/\s/g,'').toUpperCase();
+async function pid(m,p){let l;try{l=await q(m+p)}catch(e){return null}
+ const pre=(m==='01'?'41':'42')+p,x=l.map(U).find(s=>s.startsWith(pre));if(!x)return null;
+ return (x.slice(m==='01'?4:6).match(/../g)||[]).map(h=>parseInt(h,16))}
+async function conn(kind){try{await disc(true);
+ if(kind==='demo'){mode='demo';adapter='SIMULASI';link={write:s=>setTimeout(()=>feed(demo(s.trim())+'\r\r>'),25),close(){}}}
+ else if(kind==='ble'){if(!navigator.bluetooth)return toast('Web Bluetooth tidak tersedia di browser/tampilan ini. Buka link di Chrome.');
+  const d=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[0xfff0,0xffe0,0x18f0,'e7810a71-73ae-499d-8c15-faa9aef0c3f2','0000ffe0-0000-1000-8000-00805f9b34fb']});
+  const sv=await d.gatt.connect(),ss=await sv.getPrimaryServices();let ch=null;
+  for(const s of ss){for(const c of await s.getCharacteristics()){if((c.properties.write||c.properties.writeWithoutResponse)&&c.properties.notify){ch=c;break}}if(ch)break}
+  if(!ch)throw new Error('Karakteristik UART tidak ditemukan - adapter tidak kompatibel');
+  await ch.startNotifications();const dec=new TextDecoder();ch.addEventListener('characteristicvaluechanged',e=>feed(dec.decode(e.target.value)));
+  d.addEventListener('gattserverdisconnected',lost);adapter=d.name||'BLE adapter';mode='real';
+  link={write:async s=>{const b=new TextEncoder().encode(s);for(let i=0;i<b.length;i+=20){const p=b.slice(i,i+20);ch.properties.writeWithoutResponse?await ch.writeValueWithoutResponse(p):await ch.writeValue(p)}},close(){d.gatt.disconnect()}}}
+ else{if(!navigator.serial)return toast('Web Serial tidak tersedia. Gunakan Chrome desktop.');
+  const p=await navigator.serial.requestPort();await p.open({baudRate:Number($('#baud').value)||38400});
+  const w=p.writable.getWriter(),r=p.readable.getReader();adapter='Serial/USB';mode='real';
+  link={write:s=>w.write(new TextEncoder().encode(s)),close:async()=>{try{await r.cancel();w.releaseLock();await p.close()}catch(e){}}};
+  (async()=>{const d=new TextDecoder();try{for(;;){const{value,done}=await r.read();if(done)break;feed(d.decode(value))}}catch(e){}lost()})()}
+ setStatus('init');
+ for(const c of ['ATZ','ATE0','ATL0','ATS0','ATH0','ATSP0'])await q(c,c==='ATZ'?8000:4000);
+ const r=await q('0100',20000);if(r.some(x=>/UNABLE|ERROR|NO DATA/i.test(x)))throw new Error('ECU tidak merespons / protokol tidak dikenali');
+ const P={1:'SAE J1850 PWM',2:'SAE J1850 VPW',3:'ISO 9141-2',4:'ISO 14230-4 KWP (5 baud)',5:'ISO 14230-4 KWP (fast)',6:'ISO 15765-4 CAN 11/500',7:'ISO 15765-4 CAN 29/500',8:'ISO 15765-4 CAN 11/250',9:'ISO 15765-4 CAN 29/250'};
+ const n=(await q('ATDPN'))[0].replace(/^A/,'');proto=P[parseInt(n,16)]||('Protokol '+n);
+ setStatus('on');await volt();toast('Terhubung: '+adapter)}
+ catch(e){toast(e.message||String(e));link&&link.close();link=null;setStatus('off')}}
+async function volt(){try{const v=(await q('ATRV'))[0];$('#cinfo').innerHTML=`Adapter: <b>${esc(adapter)}</b> · Protokol: <b>${esc(proto)}</b> · Tegangan: <b>${esc(v)}</b>`+(mode==='demo'?' · <span class="wr">DATA SIMULASI</span>':'')}catch(e){}}
+function setStatus(s){const e=$('#st');e.className=s==='on'?(mode==='demo'?'sim':'on'):'';e.textContent=s==='on'?(mode==='demo'?'DEMO · SIMULASI':'TERHUBUNG'):s==='init'?'MENGINISIALISASI…':'TERPUTUS'}
+function lost(){if(link){link=null;live=false;setStatus('off');toast('Koneksi terputus')}}
+async function disc(q2){live=false;if(link){try{link.close()}catch(e){}link=null}setStatus('off');if(!q2)$('#cinfo').textContent='Belum terhubung.'}
+const need=()=>{if(!link){toast('Hubungkan adapter atau pilih Demo Mode dulu');return false}return true};
+
+/* ===== PID & DTC ===== */
+const PIDS={'0C':['Engine RPM','rpm',d=>(d[0]*256+d[1])/4],'0D':['Kecepatan','km/h',d=>d[0]],'05':['Suhu Coolant','°C',d=>d[0]-40],'0F':['Suhu Intake (IAT)','°C',d=>d[0]-40],
+'11':['Throttle Position','%',d=>d[0]*100/255],'49':['Accelerator Pedal','%',d=>d[0]*100/255],'04':['Beban Mesin','%',d=>d[0]*100/255],'10':['MAF','g/s',d=>(d[0]*256+d[1])/100],
+'0B':['MAP','kPa',d=>d[0]],'06':['STFT B1','%',d=>(d[0]-128)*100/128],'07':['LTFT B1','%',d=>(d[0]-128)*100/128],'0A':['Fuel Pressure','kPa',d=>d[0]*3],
+'0E':['Timing Advance','°',d=>d[0]/2-64],'42':['Tegangan Modul','V',d=>(d[0]*256+d[1])/1000],'14':['O2 B1S1','V',d=>d[0]/200]};
+let sel=new Set(['0C','0D','05','04','11','42']),hist={},mmx={};
+$('#psel').innerHTML=Object.entries(PIDS).map(([k,v])=>`<label style="display:inline-block;margin:4px 10px 0 0"><input type="checkbox" style="width:auto" ${sel.has(k)?'checked':''} onchange="this.checked?sel.add('${k}'):sel.delete('${k}')"> ${v[0]}</label>`).join('');
+async function liveToggle(){if(!need())return;live=!live;$('#lbtn').textContent=live?'Pause':'Mulai';
+ while(live&&link){for(const k of [...sel]){if(!live||!link)break;const d=await pid('01',k);if(!d){setCard(k,null);continue}
+  const v=PIDS[k][2](d);lastLive[k]=v;(hist[k]=hist[k]||[]).push(v);if(hist[k].length>60)hist[k].shift();
+  const m=mmx[k]=mmx[k]||[v,v];m[0]=Math.min(m[0],v);m[1]=Math.max(m[1],v);setCard(k,v)}
+  $('#lnote').textContent=mode==='demo'?' DATA SIMULASI':' Data aktual ECU'}
+ $('#lbtn').textContent='Mulai'}
+function setCard(k,v){let e=$('#c'+k);if(!e){e=document.createElement('div');e.id='c'+k;e.className='card';$('#lgrid').appendChild(e)}
+ if(v===null){e.innerHTML=`<div class="u">${PIDS[k][0]}</div><div class="mm">Tidak didukung ECU</div>`;return}
+ const h=hist[k],mn=Math.min(...h),mx=Math.max(...h),r=(mx-mn)||1,pts=h.map((y,i)=>`${i*(100/59)},${32-(y-mn)/r*30}`).join(' ');
+ e.innerHTML=`<div class="u">${PIDS[k][0]}</div><div class="big">${v.toFixed(k==='42'||k==='10'||k==='14'?2:0)} <span class="u">${PIDS[k][1]}</span></div>
+ <svg class="sp" viewBox="0 0 100 34" preserveAspectRatio="none"><polyline fill="none" stroke="#2f7bff" stroke-width="1.5" points="${pts}"/></svg><div class="mm">min ${mmx[k][0].toFixed(1)} · max ${mmx[k][1].toFixed(1)}</div>`}
+
+const DB={P0300:['Misfire acak/multi silinder','Busi/koil aus, bocor vakum, injektor, kompresi rendah','Periksa busi & koil, cek kebocoran vakum, uji kompresi','Tinggi'],
+P0301:['Misfire silinder 1','Busi, koil, injektor silinder 1','Tukar koil antar-silinder lalu cek apakah misfire pindah','Tinggi'],P0302:['Misfire silinder 2','Busi, koil, injektor silinder 2','Tukar koil antar-silinder','Tinggi'],P0303:['Misfire silinder 3','Busi, koil, injektor silinder 3','Tukar koil antar-silinder','Tinggi'],P0304:['Misfire silinder 4','Busi, koil, injektor silinder 4','Tukar koil antar-silinder','Tinggi'],
+P0171:['Campuran terlalu miskin (B1)','Bocor vakum, MAF kotor, tekanan BBM rendah, injektor mampet','Cek selang vakum, bersihkan MAF, ukur tekanan BBM, lihat fuel trim','Sedang'],
+P0172:['Campuran terlalu kaya (B1)','Injektor bocor, MAF salah baca, regulator tekanan BBM','Cek MAF, injektor, tekanan BBM','Sedang'],
+P0420:['Efisiensi katalis di bawah ambang (B1)','Katalis menurun, O2 sensor belakang, kebocoran exhaust','Cek kebocoran exhaust, bandingkan sinyal O2 depan/belakang','Sedang'],
+P0101:['MAF di luar rentang','MAF kotor, kebocoran intake','Bersihkan MAF dengan cleaner khusus, cek intake','Sedang'],
+P0113:['IAT sensor tegangan tinggi','Sensor/konektor IAT, kabel putus','Cek konektor & resistansi sensor','Rendah'],P0117:['ECT sensor tegangan rendah','Sensor ECT, short ke ground','Cek resistansi sensor vs tabel pabrikan','Sedang'],
+P0335:['Sirkuit sensor CKP','Sensor CKP, kabel, reluctor','Cek kabel & celah sensor, periksa sinyal osiloskop','Tinggi'],P0340:['Sirkuit sensor CMP','Sensor CMP, kabel, timing chain/belt','Cek sensor dan timing','Tinggi'],
+P0442:['Kebocoran EVAP kecil','Tutup tangki longgar, selang EVAP, purge valve','Cek tutup tangki, smoke test EVAP','Rendah'],P0401:['Aliran EGR kurang','Saluran EGR tersumbat, katup EGR macet','Bersihkan saluran & uji katup','Sedang'],
+P0505:['Sistem kontrol idle','Throttle body kotor, IAC/ETC','Bersihkan throttle body, cek vakum','Sedang'],P0562:['Tegangan sistem rendah','Aki lemah, alternator, kabel','Tes aki & pengisian','Sedang'],U0100:['Komunikasi hilang dengan ECM/PCM','Kabel CAN, fuse, ECM','Cek fuse, kabel CAN, tegangan suplai','Tinggi']};
+function info(c){if(DB[c])return DB[c];const L={P:'Powertrain',B:'Body',C:'Chassis',U:'Jaringan komunikasi'}[c[0]];
+ return [`${L} - kode ${c[1]==='0'||c[1]==='2'?'generik SAE':'spesifik pabrikan'}`,'Deskripsi lengkap belum ada di database lokal','Cari kode ini di manual servis merek terkait; jangan ganti komponen hanya berdasarkan kode','Tidak diketahui']}
+function decodeDtc(lines,pre){const out=[];for(const l of lines){let h=U(l);if(!h.startsWith(pre))continue;h=h.slice(2);if(h.length%4===2)h=h.slice(2);
+ for(let i=0;i+4<=h.length;i+=4){const w=h.slice(i,i+4);if(w==='0000')continue;const a=parseInt(w.slice(0,2),16);out.push('PCBU'[a>>6]+((a>>4)&3)+(a&15).toString(16).toUpperCase()+w.slice(2))}}return [...new Set(out)]}
+async function getDtcs(){const r={};for(const [k,m,p] of [['confirmed','03','43'],['pending','07','47'],['permanent','0A','4A']]){try{r[k]=decodeDtc(await q(m),p)}catch(e){r[k]=[]}}return r}
+async function readDtc(){if(!need())return;toast('Membaca DTC…');const d=await getDtcs();scanObj=scanObj||newScan();scanObj.dtc=d;showDtc(d)}
+function showDtc(d){const rows=[];for(const t of ['confirmed','pending','permanent'])for(const c of d[t]||[]){const i=info(c);rows.push(`<tr><td><b>${c}</b><br><span class="tag">${t}</span></td><td><b>${i[0]}</b><br>Penyebab: ${i[1]}<br>Pemeriksaan: ${i[2]}<br><span class="${i[3]==='Tinggi'?'er':'wr'}">Prioritas: ${i[3]}</span></td></tr>`)}
+ $('#dlist').innerHTML=rows.length?`<table>${rows.join('')}</table>`:'<span class="ok">Tidak ada DTC tersimpan.</span>'}
+async function clearDtc(){if(!need())return;const d=await getDtcs();const n=d.confirmed.length+d.pending.length;
+ if(!confirm(`Terdeteksi ${n} DTC (+${d.permanent.length} permanent). Hapus DTC dan reset monitor kesiapan emisi? Ini tidak memperbaiki penyebab kerusakan.`))return;
+ const r=await q('04');const ok=r.some(x=>U(x).startsWith('44'));await sleep(500);const a=await getDtcs();showDtc(a);
+ toast(ok?(a.confirmed.length?'Perintah diterima, sebagian kode masih ada':'Berhasil dihapus'):'Gagal: ECU menolak perintah (mungkin kontak ON/mesin hidup diperlukan)')}
+function dsearch(){const s=$('#dq').value.trim().toLowerCase();$('#dres').innerHTML=!s?'':Object.entries(DB).filter(([c,v])=>c.toLowerCase().includes(s)||v.join(' ').toLowerCase().includes(s)).map(([c,v])=>`<p><b>${c}</b> ${v[0]}<br><span class="note">${v[1]} → ${v[2]}</span></p>`).join('')||'<span class="note">Tidak ditemukan di database lokal.</span>'}
+
+/* Freeze frame */
+let ffNow=null;
+async function readFF(){if(!need())return;const o={};for(const k of ['0C','0D','05','04','0B','06','07','42']){const d=await pid('02',k);if(d)o[PIDS[k][0]+' ('+PIDS[k][1]+')']=+PIDS[k][2](d).toFixed(2)}
+ ffNow=o;$('#ff').innerHTML=Object.keys(o).length?`<table>${Object.entries(o).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>`:'<span class="note">Tidak ada freeze frame.</span>';if(scanObj)scanObj.ff=o}
+function saveFF(){if(!$('#consent').checked)return toast('Aktifkan izin penyimpanan di Settings');if(!ffNow)return toast('Baca freeze frame dulu');localStorage.setItem('ecu_ff',JSON.stringify(ffNow));toast('Freeze frame disimpan')}
+function cmpFF(){let s;try{s=JSON.parse(localStorage.getItem('ecu_ff')||'null')}catch(e){}if(!s||!ffNow)return toast('Perlu freeze frame tersimpan dan terbaru');
+ $('#ff').innerHTML=`<table><tr><th>Parameter</th><th>Sekarang</th><th>Tersimpan</th></tr>${Object.keys(ffNow).map(k=>`<tr><td>${k}</td><td>${ffNow[k]}</td><td>${s[k]??'-'}</td></tr>`).join('')}</table>`}
+
+/* Readiness */
+async function readReady(){if(!need())return;const d=await pid('01','01');if(!d||d.length<4)return toast('Data readiness tidak tersedia');
+ const [A,B,C,D]=d,mil=!!(A&128),cnt=A&127,res={};
+ const mon=(name,sup,nr)=>res[name]=!sup?'Not Supported':nr?'Not Ready':'Ready';
+ mon('Misfire',B&1,B&16);mon('Fuel System',B&2,B&32);mon('Comprehensive Component',B&4,B&64);
+ [['Catalyst',0],['Heated Catalyst',1],['EVAP',2],['Secondary Air',3],['Oxygen Sensor',5],['O2 Sensor Heater',6],['EGR/VVT',7]].forEach(([n,b])=>mon(n,C>>b&1,D>>b&1));
+ if(scanObj)scanObj.ready=res,scanObj.mil=mil,scanObj.cnt=cnt;
+ $('#ready').innerHTML=`<p>MIL: <b class="${mil?'er':'ok'}">${mil?'ON':'OFF'}</b> · DTC: <b>${cnt}</b></p><table>${Object.entries(res).map(([k,v])=>`<tr><td>${k}</td><td class="${v==='Ready'?'ok':v==='Not Ready'?'wr':''}">${v}</td></tr>`).join('')}</table><div class="note">Pembacaan untuk mesin bensin. Mesin diesel memakai pemetaan bit berbeda.</div>`}
+
+/* Scan */
+const newScan=()=>({time:new Date().toLocaleString('id-ID'),adapter,proto,mode,veh:vehInfo(),vin:$('#v_vin').value,dtc:{confirmed:[],pending:[],permanent:[]},ready:null,live:{},ff:null});
+const vehInfo=()=>['brand','model','year','eng'].map(k=>$('#v_'+k).value).join(' ').trim()||'-';
+async function scan(full){if(!need())return;scanObj=newScan();const s=$('#sres');s.innerHTML='Memindai…';
+ try{const v=await q('0902',8000);let h=v.map(x=>x.replace(/^\d:/,'').replace(/\s/g,'')).filter(x=>!/^[0-9A-F]{3}$/i.test(x)).join('').toUpperCase(),i=h.indexOf('4902');
+  if(i>=0){const t=h.slice(i+6).match(/../g).map(x=>parseInt(x,16)).filter(c=>c>32&&c<127);const vin=String.fromCharCode(...t).slice(-17);if(vin.length===17){$('#v_vin').value=vin;scanObj.vin=vin}}}catch(e){}
+ scanObj.dtc=await getDtcs();showDtc(scanObj.dtc);await readReady();
+ if(full){await readFF();for(const k of ['0C','05','04','42']){const d=await pid('01',k);if(d)scanObj.live[PIDS[k][0]]=+PIDS[k][2](d).toFixed(2)}}
+ const n=scanObj.dtc.confirmed.length+scanObj.dtc.pending.length;
+ s.innerHTML=`<table><tr><td>Mesin / Powertrain (OBD-II)</td><td class="${n?'er':'ok'}">${n?n+' DTC':'Normal'}</td></tr><tr><td>Emisi / Readiness</td><td>${scanObj.ready?'Terbaca':'Tidak tersedia'}</td></tr></table><div class="note">Waktu: ${scanObj.time}${mode==='demo'?' · SIMULASI':''}</div>`;
+ $('#modlist').innerHTML=`<table><tr><th>Modul</th><th>Status</th></tr><tr><td>ECU Mesin (PCM)</td><td>${n?n+' DTC':'Normal'} · ${proto}</td></tr>`+['Transmisi otomatis','ABS','Airbag/SRS','Body Control','EPS','AC','Baterai EV'].map(m=>`<tr><td>${m}</td><td class="note">Tidak dapat diakses via OBD-II standar - butuh protokol/adapter khusus pabrikan</td></tr>`).join('')+'</table>';
+ toast('Scan selesai');renderRep()}catch(e){s.textContent='Scan gagal: '+e.message}}
+
+const COMP={'MAP Sensor':'Mengukur tekanan intake. Gejala: boros, tarikan berat. Cek: bandingkan MAP saat kontak ON mesin mati (~barometrik).','MAF Sensor':'Mengukur massa udara. Gejala: idle kasar, fuel trim menyimpang. Cek: bersihkan, bandingkan g/s idle dgn spesifikasi.','TPS':'Posisi throttle. Gejala: hentakan, idle tidak stabil. Cek: sapuan nilai halus 0-100%.','CKP/CMP':'Posisi poros engkol/noken. Gejala: sulit hidup, mati mendadak. Cek: kabel, celah, sinyal RPM saat cranking.','O2 Sensor':'Mengukur oksigen gas buang. Gejala: boros, emisi tinggi. Cek: respons naik-turun cepat pada sensor depan.','ECT/IAT':'Suhu coolant/udara. Gejala: kipas terus hidup, sulit start. Cek: bandingkan dgn suhu aktual saat mesin dingin.','Knock Sensor':'Mendeteksi ketukan. Gejala: tenaga turun. Cek: torsi baut & kabel.','Injektor/Koil/Pompa BBM':'Ukur tekanan BBM, tukar koil antar silinder, dengar pompa saat kontak ON.','EGR/Throttle Body':'Cek kebersihan & gerak katup. Jangan menonaktifkan EGR atau sistem emisi.'};
+$('#comp').innerHTML=Object.entries(COMP).map(([k,v])=>`<p><b>${k}</b><br><span class="note">${v} Satu parameter saja tidak cukup untuk memvonis komponen rusak.</span></p>`).join('');
+
+/* AI (aturan lokal) */
+function analyze(){if(!scanObj&&!Object.keys(lastLive).length)return toast('Jalankan scan atau Live Data dulu');const F=[],H=[],R=[],s=scanObj,L=lastLive;
+ if(s){for(const t of ['confirmed','pending','permanent'])for(const c of s.dtc[t]||[]){const i=info(c);F.push(`DTC ${c} (${t}): ${i[0]}`);H.push(`${c}: kemungkinan ${i[1]}`);R.push(`${c}: ${i[2]}`)}
+  if(s.ready){const nr=Object.entries(s.ready).filter(([,v])=>v==='Not Ready').map(([k])=>k);if(nr.length)F.push('Monitor belum siap: '+nr.join(', '))}}
+ if(L['07']!==undefined&&Math.abs(L['07'])>10){F.push(`LTFT ${L['07'].toFixed(1)}%`);H.push(L['07']>0?'Campuran cenderung miskin: bocor vakum, MAF kotor, atau tekanan BBM rendah':'Campuran cenderung kaya: injektor bocor atau MAF melebihi pembacaan');R.push('Bandingkan STFT/LTFT pada idle vs 2500 rpm untuk menyempitkan sumber')}
+ if(L['05']>105){F.push(`Suhu coolant ${L['05']}°C`);H.push('Pendinginan bermasalah (coolant, kipas, thermostat)');R.push('Hentikan mesin bila terus naik; periksa level coolant saat dingin')}
+ if(L['42']!==undefined&&L['0C']>400&&L['42']<13){F.push(`Tegangan ${L['42'].toFixed(1)}V saat mesin hidup`);H.push('Sistem pengisian kurang optimal');R.push('Tes alternator & aki')}
+ if(!F.length)F.push('Tidak ada anomali pada data yang tersedia.');
+ const sec=(t,a,c)=>`<div class="card"><b class="${c}">${t}</b><ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="note">-</li>'}</ul></div>`;
+ $('#aires').innerHTML=sec('FAKTA (dari data ECU)',F,'ok')+sec('DUGAAN (belum terkonfirmasi)',H,'wr')+sec('REKOMENDASI PEMERIKSAAN',R,'')+'<div class="note">Ini bukan diagnosis pasti. Konfirmasi dengan pemeriksaan fisik sebelum mengganti komponen.</div>'}
+
+/* Laporan & riwayat */
+function renderRep(){const s=scanObj;if(!s)return;const d=s.dtc,n=d.confirmed.length+d.pending.length+d.permanent.length;
+ $('#rbody').innerHTML=`<h3 style="margin:8px 0">Laporan ECU Scanner Pro</h3><table><tr><td>Kendaraan</td><td>${esc(s.veh)}</td></tr><tr><td>VIN</td><td>${esc(s.vin||'-')}</td></tr><tr><td>Waktu</td><td>${s.time}</td></tr><tr><td>Perangkat</td><td>${esc(s.adapter)} · ${esc(s.proto)}${s.mode==='demo'?' · <b>SIMULASI</b>':''}</td></tr><tr><td>Modul diperiksa</td><td>PCM (OBD-II)</td></tr><tr><td>Jumlah DTC</td><td>${n}</td></tr><tr><td>Daftar DTC</td><td>${[...d.confirmed,...d.pending,...d.permanent].join(', ')||'-'}</td></tr><tr><td>Readiness</td><td>${s.ready?Object.entries(s.ready).map(([k,v])=>k+': '+v).join('; '):'-'}</td></tr></table><p class="note">Skor kesehatan tidak ditampilkan karena belum ada metode penilaian baku. Rekomendasi: tangani DTC prioritas tinggi lebih dulu.</p>`}
+function csv(){const s=scanObj;if(!s)return toast('Belum ada scan');const rows=[['Waktu',s.time],['Kendaraan',s.veh],['VIN',s.vin],['Adapter',s.adapter],['Mode',s.mode]];
+ for(const t of ['confirmed','pending','permanent'])for(const c of s.dtc[t])rows.push(['DTC '+t,c,info(c)[0]]);
+ const txt=rows.map(r=>r.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n');const b=$('#csvbox');b.style.display='block';b.value=txt;
+ try{navigator.clipboard.writeText(txt);toast('CSV disalin ke clipboard')}catch(e){}
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv'}));a.download='scan.csv';a.click()}catch(e){}}
+function wa(){const s=scanObj;if(!s)return toast('Belum ada scan');const t=`ECU Scanner Pro\n${s.veh}\nVIN: ${s.vin||'-'}\n${s.time}\nDTC: ${[...s.dtc.confirmed,...s.dtc.pending].join(', ')||'tidak ada'}`;window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank')}
+function getH(){try{return JSON.parse(localStorage.getItem('ecu_hist')||'[]')}catch(e){return[]}}
+function saveHist(){if(!scanObj)return toast('Belum ada scan');if(!$('#consent').checked)return toast('Aktifkan izin penyimpanan di Settings');
+ try{const h=getH();h.unshift(scanObj);localStorage.setItem('ecu_hist',JSON.stringify(h.slice(0,50)));toast('Disimpan')}catch(e){toast('Penyimpanan tidak tersedia')}}
+function renderHist(){const h=getH();$('#hlist').innerHTML=h.length?`<table>${h.map((s,i)=>{const prev=h[i+1],cur=[...s.dtc.confirmed],pv=prev?prev.dtc.confirmed:null;
+ return `<tr><td>${s.time}<br><span class="note">${esc(s.veh)} ${s.vin||''}${s.mode==='demo'?' · SIMULASI':''}</span></td><td>DTC: ${cur.join(', ')||'-'}${pv?`<br><span class="note">vs sebelumnya: baru [${cur.filter(c=>!pv.includes(c)).join(', ')||'-'}], hilang [${pv.filter(c=>!cur.includes(c)).join(', ')||'-'}]</span>`:''}</td></tr>`}).join('')}</table>`:'Riwayat kosong.'}
+function saveCfg(){try{if($('#consent').checked)localStorage.setItem('ecu_cfg','1');else{localStorage.clear()}}catch(e){}}
+function wipe(){try{localStorage.clear()}catch(e){}toast('Data tersimpan dihapus')}
+try{$('#consent').checked=!!localStorage.getItem('ecu_cfg')}catch(e){}
+
+/* ===== Simulator (hanya Demo Mode) ===== */
+function demo(c){const t=Date.now()/1000,sn=Math.sin(t/2);
+ const raw={'0C':()=>{const r=(850+250*sn)*4;return [r>>8,r&255]},'0D':()=>[40+30*sn|0],'05':()=>[130],'0F':()=>[70],'11':()=>[(40+20*sn)*2.55|0],'49':()=>[100],'04':()=>[(35+15*sn)*2.55|0],'10':()=>[3,(20+10*sn)|0],'0B':()=>[35],'06':()=>[128+(4*sn|0)],'07':()=>[134],'0A':()=>[],'0E':()=>[150],'42':()=>[0x36,0xB0],'14':()=>[100]};
+ const h=b=>b.map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+ if(c==='ATZ')return 'ELM327 v1.5 SIMULASI';if(/^AT(E0|L0|S0|H0|SP0)/.test(c))return 'OK';if(c==='ATDPN')return 'A6';if(c==='ATRV')return '14.0V';
+ if(c==='0100')return '4100BE3FA813';if(c==='0101')return '4101830765 00'.replace(' ','');
+ if(c==='0902')return '014\r0:490201574D5A\r1:5A5A5A31323334\r2:353637383930';
+ if(c==='03')return '43020300 0171'.replace(' ','');if(c==='07')return '4700';if(c==='0A')return '4A00';if(c==='04')return '44';
+ const m=c.match(/^(01|02)([0-9A-F]{2})(00)?$/);if(m&&raw[m[2]]){const b=raw[m[2]]();if(!b.length)return 'NO DATA';return (m[1]==='01'?'41'+m[2]:'42'+m[2]+'00')+h(b)}
+ return 'NO DATA'}
+tab('dash');
+</script></body></html>
