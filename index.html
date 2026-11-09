@@ -189,7 +189,7 @@ async function readReady(){if(!need())return;const d=await pid('01','01');if(!d|
 const newScan=()=>({time:new Date().toLocaleString('id-ID'),adapter,proto,mode,veh:vehInfo(),vin:$('#v_vin').value,dtc:{confirmed:[],pending:[],permanent:[]},ready:null,live:{},ff:null});
 const vehInfo=()=>['brand','model','year','eng'].map(k=>$('#v_'+k).value).join(' ').trim()||'-';
 async function scan(full){if(!need())return;scanObj=newScan();const s=$('#sres');s.innerHTML='Memindai…';
- try{const v=await q('0902',8000);let h=v.map(x=>x.replace(/^\d:/,'').replace(/\s/g,'')).filter(x=>!/^[0-9A-F]{3}$/i.test(x)).join('').toUpperCase(),i=h.indexOf('4902');
+ try{try{const v=await q('0902',8000);let h=v.map(x=>x.replace(/^\d:/,'').replace(/\s/g,'')).filter(x=>!/^[0-9A-F]{3}$/i.test(x)).join('').toUpperCase(),i=h.indexOf('4902');
   if(i>=0){const t=h.slice(i+6).match(/../g).map(x=>parseInt(x,16)).filter(c=>c>32&&c<127);const vin=String.fromCharCode(...t).slice(-17);if(vin.length===17){$('#v_vin').value=vin;scanObj.vin=vin}}}catch(e){}
  scanObj.dtc=await getDtcs();showDtc(scanObj.dtc);await readReady();
  if(full){await readFF();for(const k of ['0C','05','04','42']){const d=await pid('01',k);if(d)scanObj.live[PIDS[k][0]]=+PIDS[k][2](d).toFixed(2)}}
@@ -236,7 +236,7 @@ function demo(c){const t=Date.now()/1000,sn=Math.sin(t/2);
  const h=b=>b.map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
  if(c==='ATZ')return 'ELM327 v1.5 SIMULASI';if(/^AT(E0|L0|S0|H0|SP0)/.test(c))return 'OK';if(c==='ATDPN')return 'A6';if(c==='ATRV')return '14.0V';
  if(c==='0100')return '4100BE3FA813';if(c==='0101')return '4101830765 00'.replace(' ','');
- if(c==='0902')return '014\r0:490201574D5A\r1:5A5A5A31323334\r2:353637383930';
+ if(c==='0902')return '014\r0:490201574D5A\r1:5A5A5A31323334\r2:35363738393031';
  if(c==='03')return '43020300 0171'.replace(' ','');if(c==='07')return '4700';if(c==='0A')return '4A00';if(c==='04')return '44';
  const m=c.match(/^(01|02)([0-9A-F]{2})(00)?$/);if(m&&raw[m[2]]){const b=raw[m[2]]();if(!b.length)return 'NO DATA';return (m[1]==='01'?'41'+m[2]:'42'+m[2]+'00')+h(b)}
  return 'NO DATA'}
